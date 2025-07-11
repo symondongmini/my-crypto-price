@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BTC 실시간 시세</title>
+</head>
+<body>
+  <h1>BTC/USDT: <span id="price">로딩중...</span></h1>
+  <script>
+    const el = document.getElementById("price");
+    const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      el.textContent = parseFloat(data.p).toFixed(2) + " USDT";
+    };
+  </script>
+</body>
+</html>
