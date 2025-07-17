@@ -2,20 +2,53 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>BTC 실시간 평단 추적</title>
+  <title>Crypto Tracker</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: sans-serif;
       text-align: center;
       padding: 50px;
       background-color: #222;
       color: white;
+      position: relative;
+      z-index: 1;
     }
-    input {
+
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      background-color: #222;
+      transition: background-color 0.3s ease;
+      pointer-events: none;
+    }
+
+    video.cat-clip {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 300px;
+      height: 300px;
+      object-fit: cover;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      z-index: -1;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+    video.visible {
+      opacity: 0.3;
+    }
+
+    select, input {
       font-size: 1.2em;
       padding: 5px;
-      width: 150px;
+      margin: 5px;
     }
+
     button {
       font-size: 1.2em;
       margin-top: 10px;
@@ -25,73 +58,122 @@
       border: none;
       cursor: pointer;
     }
+
+    .metric {
+      margin: 10px 0;
+      font-size: 1.5em;
+    }
   </style>
 </head>
 <body>
-  <h1>BTC 실시간 시세</h1>
-  <div>현재가: <span id="price">-</span> USD</div>
-  <div>
-    내 평단가: <input type="number" id="avgPrice" placeholder="평단가 입력" />
-  </div>
-  <button id="musicBtn">🎼 클래식 재생</button>
+  <video id="happyCat" class="cat-clip" autoplay muted loop playsinline src="happy.mp4"></video>
+  <video id="sadCat" class="cat-clip" autoplay muted loop playsinline src="sad.mp4"></video>
+  <div id="overlay"></div>
 
-  <!-- 안정적인 MP3 음원 사용 -->
-  <audio
-    id="bgm"
-    src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
-    loop
-  ></audio>
+  <h1>Real-time Crypto Tracker</h1>
+  <div>
+    <label>Select Coin:</label>
+    <select id="coinSelect">
+      <option value="btcusdt">BTC</option>
+      <option value="ethusdt">ETH</option>
+      <option value="xrpusdt">XRP</option>
+      <option value="dogeusdt">DOGE</option>
+    </select>
+  </div>
+  <div class="metric">Price: <span id="price">-</span> USD</div>
+  <div class="metric">Your Avg Price: <input type="number" id="avgPrice" placeholder="Enter Avg Price" /></div>
+  <div class="metric">PnL: <span id="profit">-</span>%</div>
+  <button id="musicBtn">🎼 Play Music</button>
+
+  <audio id="bgm" src="music.mp3" loop></audio>
 
   <script>
     const priceEl = document.getElementById("price");
     const avgInput = document.getElementById("avgPrice");
+    const profitEl = document.getElementById("profit");
     const audio = document.getElementById("bgm");
     const musicBtn = document.getElementById("musicBtn");
+    const coinSelect = document.getElementById("coinSelect");
+    const overlay = document.getElementById("overlay");
+    const happyCat = document.getElementById("happyCat");
+    const sadCat = document.getElementById("sadCat");
 
     let currentPrice = null;
+    let ws = null;
 
-    // Binance 실시간 시세 WebSocket 연결
-    const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      currentPrice = parseFloat(data.p);
-      priceEl.textContent = currentPrice.toFixed(2);
-      checkColorAndTempo();
+    function connectWebSocket(symbol) {
+      if (ws) ws.close();
+      ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@trade`);
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        currentPrice = parseFloat(data.p);
+        priceEl.textContent = currentPrice.toFixed(6);
+        updateDisplay();
+      };
+    }
+
+    connectWebSocket(coinSelect.value);
+
+    coinSelect.onchange = () => {
+      currentPrice = null;
+      priceEl.textContent = "-";
+      profitEl.textContent = "-";
+      overlay.style.backgroundColor = "#222";
+      connectWebSocket(coinSelect.value);
     };
 
-    // 음악 재생/멈춤 버튼 로직
     musicBtn.onclick = () => {
       if (audio.paused) {
-        audio.volume = 1; // 음량 명시
+        audio.volume = 1;
         audio.play().then(() => {
-          console.log("🎵 음악 재생 성공");
-          musicBtn.textContent = "⏸ 음악 멈춤";
+          musicBtn.textContent = "⏸ Stop Music";
         }).catch((err) => {
-          console.error("🎵 음악 재생 실패:", err);
-          alert("브라우저가 음악 자동재생을 차단했습니다. 다시 시도해주세요.");
+          console.error("Music playback failed:", err);
+          alert("Browser blocked auto-play. Please try again.");
         });
       } else {
         audio.pause();
-        musicBtn.textContent = "🎼 클래식 재생";
+        musicBtn.textContent = "🎵 Play Music";
       }
     };
 
-    // 배경색 변경 및 템포 조절
-    function checkColorAndTempo() {
+    function updateDisplay() {
       const avg = parseFloat(avgInput.value);
       if (isNaN(avg) || currentPrice === null) return;
 
-      if (currentPrice > avg) {
-        document.body.style.backgroundColor = "#004400"; // 초록
-        audio.playbackRate = 1.4;
+      const profitRate = ((currentPrice - avg) / avg) * 100;
+      profitEl.textContent = profitRate.toFixed(2);
+
+      const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+      const maxRange = 10;
+      const maxSpeed = 1.5;
+      const minSpeed = 0.6;
+
+      const normalized = profitRate / maxRange;
+      const curved = Math.sign(normalized) * Math.log1p(Math.abs(normalized)) / Math.log1p(1);
+
+      let speed = 1 + curved * (profitRate < 0 ? (1 - minSpeed) : (maxSpeed - 1));
+      speed = clamp(speed, 0.1, 10);
+      audio.playbackRate = speed;
+
+      const limitedProfit = clamp(profitRate, -100, 100);
+      const red = limitedProfit < 0 ? Math.round(255 * Math.abs(limitedProfit) / 100) : 0;
+      const green = limitedProfit > 0 ? Math.round(255 * limitedProfit / 100) : 0;
+      overlay.style.backgroundColor = `rgb(${red},${green},0)`;
+
+      if (profitRate > 0) {
+        happyCat.classList.add("visible");
+        sadCat.classList.remove("visible");
+      } else if (profitRate < 0) {
+        sadCat.classList.add("visible");
+        happyCat.classList.remove("visible");
       } else {
-        document.body.style.backgroundColor = "#440000"; // 빨강
-        audio.playbackRate = 0.7;
+        happyCat.classList.remove("visible");
+        sadCat.classList.remove("visible");
       }
     }
 
-    // 평단 입력이 바뀔 때 바로 반응
-    avgInput.addEventListener("input", checkColorAndTempo);
+    avgInput.addEventListener("input", updateDisplay);
   </script>
 </body>
 </html>
