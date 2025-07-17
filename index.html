@@ -2,30 +2,78 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>BTC 실시간 시세</title>
+  <title>BTC 실시간 평단 추적</title>
   <style>
-  body {
-    font-family: sans-serif;
-    text-align: center;
-    padding-top: 100px;
-    background-color: #111;
-    color: #0f0;
-    font-size: 2em;
-  }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 50px;
+      background-color: #222;
+      color: white;
+    }
+    input {
+      font-size: 1.2em;
+      padding: 5px;
+      width: 150px;
+    }
+    button {
+      font-size: 1.2em;
+      margin-top: 10px;
+    }
   </style>
-
 </head>
 <body>
-  <h1>BTC/USDT: <span id="price">로딩중...</span></h1>
+  <h1>BTC 실시간 시세</h1>
+  <div>현재가: <span id="price">-</span> USD</div>
+  <div>
+    내 평단가: <input type="number" id="avgPrice" placeholder="평단가 입력" />
+  </div>
+  <button id="musicBtn">🎼 클래식 재생</button>
+
+  <audio id="bgm" src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Mozart_-_Eine_kleine_Nachtmusik_-_1st_movement.ogg" loop></audio>
+
   <script>
-    const el = document.getElementById("price");
+    const priceEl = document.getElementById("price");
+    const avgInput = document.getElementById("avgPrice");
+    const audio = document.getElementById("bgm");
+    let currentPrice = null;
+
+    // Binance WebSocket 연결
     const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      el.textContent = parseFloat(data.p).toFixed(2) + " USDT";
+      currentPrice = parseFloat(data.p);
+      priceEl.textContent = currentPrice.toFixed(2);
+      checkColorAndTempo();
     };
+
+    // 음악 재생 버튼
+    document.getElementById("musicBtn").onclick = () => {
+      if (audio.paused) {
+        audio.play();
+        document.getElementById("musicBtn").textContent = "⏸ 음악 멈춤";
+      } else {
+        audio.pause();
+        document.getElementById("musicBtn").textContent = "🎼 클래식 재생";
+      }
+    };
+
+    // 색상 및 템포 체크
+    function checkColorAndTempo() {
+      const avg = parseFloat(avgInput.value);
+      if (isNaN(avg) || currentPrice === null) return;
+
+      if (currentPrice > avg) {
+        document.body.style.backgroundColor = "#004400"; // 초록
+        audio.playbackRate = 1.4;
+      } else {
+        document.body.style.backgroundColor = "#440000"; // 빨강
+        audio.playbackRate = 0.7;
+      }
+    }
+
+    // 평단 변경 시 즉시 반영
+    avgInput.addEventListener("input", checkColorAndTempo);
   </script>
 </body>
 </html>
-
-
