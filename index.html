@@ -35,7 +35,12 @@
   </div>
   <button id="musicBtn">🎼 클래식 재생</button>
 
-  <audio id="bgm" src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Mozart_-_Eine_kleine_Nachtmusik_-_1st_movement.ogg" loop></audio>
+  <!-- 안정적인 MP3 음원 사용 -->
+  <audio
+    id="bgm"
+    src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    loop
+  ></audio>
 
   <script>
     const priceEl = document.getElementById("price");
@@ -45,7 +50,7 @@
 
     let currentPrice = null;
 
-    // WebSocket으로 현재가 수신
+    // Binance 실시간 시세 WebSocket 연결
     const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -54,14 +59,16 @@
       checkColorAndTempo();
     };
 
-    // 음악 재생/정지 + 버튼 상태 동기화
+    // 음악 재생/멈춤 버튼 로직
     musicBtn.onclick = () => {
       if (audio.paused) {
+        audio.volume = 1; // 음량 명시
         audio.play().then(() => {
+          console.log("🎵 음악 재생 성공");
           musicBtn.textContent = "⏸ 음악 멈춤";
         }).catch((err) => {
-          alert("브라우저에서 음악 재생이 차단되었거나 실패했습니다.");
-          console.error("음악 재생 오류:", err);
+          console.error("🎵 음악 재생 실패:", err);
+          alert("브라우저가 음악 자동재생을 차단했습니다. 다시 시도해주세요.");
         });
       } else {
         audio.pause();
@@ -69,7 +76,7 @@
       }
     };
 
-    // 가격 비교 후 배경색 + 음악 템포 변경
+    // 배경색 변경 및 템포 조절
     function checkColorAndTempo() {
       const avg = parseFloat(avgInput.value);
       if (isNaN(avg) || currentPrice === null) return;
@@ -83,6 +90,7 @@
       }
     }
 
+    // 평단 입력이 바뀔 때 바로 반응
     avgInput.addEventListener("input", checkColorAndTempo);
   </script>
 </body>
